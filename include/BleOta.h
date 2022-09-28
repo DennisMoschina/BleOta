@@ -1,0 +1,46 @@
+#ifndef _BLE_OTA_H
+#define _BLE_OTA_H
+
+#include <NimBLECharacteristic.h>
+
+#include "esp_ota_ops.h"
+
+#define OTA_SERVICE_UUID "d6f1d96d-594c-4c53-b1c6-244a1dfde6d8"
+#define OTA_CONTROL_CHARACTERISTIC_UUID "7AD671AA-21C0-46A4-B722-270E3AE3D830"
+#define OTA_DATA_CHARACTERISTIC_UUID "23408888-1F40-4CD8-9B89-CA8D45F8A5B0"
+
+#define OTA_CONTROL_NOP_MASK 0x0
+#define OTA_CONTROL_REQUEST_MASK 0x1
+#define OTA_CONTROL_REQUEST_ACK_MASK 0x2
+#define OTA_CONTROL_REQUEST_NAK_MASK 0x3
+#define OTA_CONTROL_DONE_MASK 0x4
+#define OTA_CONTROL_DONE_ACK_MASK 0x5
+#define OTA_CONTROL_DONE_NAK_MASK 0x6
+#define OTA_CONTROL_REBOOT_MASK 0x7
+
+enum svr_chr_ota_control_val_t {
+  SVR_CHR_OTA_CONTROL_NOP = OTA_CONTROL_NOP_MASK,
+  SVR_CHR_OTA_CONTROL_REQUEST = OTA_CONTROL_REQUEST_MASK,
+  SVR_CHR_OTA_CONTROL_REQUEST_ACK = OTA_CONTROL_REQUEST_ACK_MASK,
+  SVR_CHR_OTA_CONTROL_REQUEST_NAK = OTA_CONTROL_REQUEST_NAK_MASK,
+  SVR_CHR_OTA_CONTROL_DONE = OTA_CONTROL_DONE_MASK,
+  SVR_CHR_OTA_CONTROL_DONE_ACK = OTA_CONTROL_DONE_ACK_MASK,
+  SVR_CHR_OTA_CONTROL_DONE_NAK = OTA_CONTROL_DONE_NAK_MASK,
+  SVR_CHR_OTA_CONTROL_REBOOT = OTA_CONTROL_REBOOT_MASK
+};
+
+
+void checkOta();
+bool runDiagnostics();
+void setupOta();
+void startOta();
+void endOta();
+
+extern NimBLECharacteristic* otaControl;
+extern NimBLECharacteristic* otaData;
+extern size_t packetSize;
+extern const esp_partition_t* updatePartition;
+extern esp_ota_handle_t updateHandle;
+
+
+#endif
