@@ -48,30 +48,48 @@ public:
  */
 class OtaDataCallback: public NimBLECharacteristicCallbacks {
     void onWrite(NimBLECharacteristic* pCharacteristic) {
-        const uint8_t* received = pCharacteristic->getValue().data();
+        const uint8_t* received = (uint8_t*) malloc(pCharacteristic->getValue().length());
 
-        log_v("received %d bytes", pCharacteristic->getValue().length());
+        memcpy((void*)received, pCharacteristic->getValue().data(), pCharacteristic->getValue().length());
+
+        log_d("received %d bytes", pCharacteristic->getValue().length());
+
+        // for (int i = 0; i < pCharacteristic->getValue().length(); i++) {
+        //     log_v("[%d] received data: 0x%x", i, received[i]);
+        // }
 
         if (updating) {
-            log_v("received data with request");
+            log_d("received data while in update mode");
             esp_ota_write(updateHandle, received, packetSize);
-            return;
         } else {
-            log_v("received data without request");
-            log_v("received %d bytes", pCharacteristic->getValue().length());
+            log_d("received data outside update mode");
+
             packetSize = received[1] << 8 | received[0];
             log_v("packet size: %d", packetSize);
-            return;
         }
 
-        log_v("received data, but not in request state");
+        free((void*)received);
     }
 };
+
+void logPartitions() {
+    log_v("Partitions:");
+    for (esp_partition_iterator_t it
+        = esp_partition_find(ESP_PARTITION_TYPE_APP, ESP_PARTITION_SUBTYPE_ANY, NULL);
+        it != NULL;
+        it = esp_partition_next(it)) {
+            const esp_partition_t* partition = esp_partition_get(it);
+            log_v("  %s, subtype: %d, size: %d, address: 0x%x",
+                partition->label, partition->subtype, partition->size, partition->address);
+    }
+}
 
 /**
  * @brief Check if a new OTA update was installed and verify it.
  */
 void checkOta() {
+    logPartitions();
+
     const esp_partition_t *partition = esp_ota_get_running_partition();
 
     log_v("Running partition: %s", partition->label);
@@ -94,6 +112,8 @@ void checkOta() {
     } else {
         log_e("Failed to get OTA state, error %s", esp_err_to_name(err));
     }
+
+    log_v("update state: %d", updating);
 }
 
 /**
@@ -116,9 +136,11 @@ void setupOta() {
 /**
  * @brief Set the device into OTA mode and send acknowledgement to client.
  */
-void startOta() {    
+void startOta() {
+    delay(1000);
     log_i("OTA has been requested via BLE.");
     updatePartition = esp_ota_get_next_update_partition(NULL);
+    log_v("installing update to partition: %s", updatePartition->label);
     esp_err_t error = esp_ota_begin(updatePartition, OTA_SIZE_UNKNOWN, &updateHandle);
 
     log_d("updateHandle: %d", updateHandle);
@@ -130,8 +152,15 @@ void startOta() {
         otaControl->setValue(OTA_CONTROL_REQUEST_ACK_MASK);
     } else {
         updating = false;
-
         log_e("OTA failed to start, error: %s", esp_err_to_name(error));
+
+        error = esp_ota_abort(updateHandle);
+        if (error == ESP_OK) {
+            log_i("OTA aborted");
+        } else {
+            log_e("OTA failed to abort, error: %s", esp_err_to_name(error));
+        }
+
         otaControl->setValue(OTA_CONTROL_REQUEST_NAK_MASK);
     }
     otaControl->notify();

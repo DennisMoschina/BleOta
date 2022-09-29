@@ -41,6 +41,7 @@ extern NimBLECharacteristic* otaData;
 extern size_t packetSize;
 extern const esp_partition_t* updatePartition;
 extern esp_ota_handle_t updateHandle;
+extern bool updating;
 
 
 #endif
